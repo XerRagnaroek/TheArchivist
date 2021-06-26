@@ -45,6 +45,7 @@ public class Core {
 		JDA = bob.build();
 		JDA.awaitReady();
 		JDA.addEventListener(new EventListener());
+		// CommandHandler.updateCommands();
 	}
 
 	private static void handleArgs(String args[]) {

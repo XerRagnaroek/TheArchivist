@@ -1,3 +1,5 @@
-*
-!/src/
-!/pom.xml
+/archive/
+/logs/
+/target/
+.project
+.classpath

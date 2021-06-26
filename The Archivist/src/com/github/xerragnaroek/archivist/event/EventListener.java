@@ -14,6 +14,7 @@ import net.dv8tion.jda.api.events.channel.voice.VoiceChannelDeleteEvent;
 import net.dv8tion.jda.api.events.guild.voice.GuildVoiceJoinEvent;
 import net.dv8tion.jda.api.events.guild.voice.GuildVoiceLeaveEvent;
 import net.dv8tion.jda.api.events.guild.voice.GuildVoiceMoveEvent;
+import net.dv8tion.jda.api.events.interaction.SlashCommandEvent;
 import net.dv8tion.jda.api.events.message.guild.GuildMessageDeleteEvent;
 import net.dv8tion.jda.api.events.message.guild.GuildMessageReceivedEvent;
 import net.dv8tion.jda.api.events.message.guild.GuildMessageUpdateEvent;
@@ -96,5 +97,12 @@ public class EventListener extends ListenerAdapter {
 	@Override
 	public void onGuildMessageDelete(GuildMessageDeleteEvent event) {
 		Archive.saveMessageDeleted(event);
+	}
+
+	@Override
+	public void onSlashCommand(SlashCommandEvent event) {
+		if (!event.getMember().getUser().isBot()) {
+			CommandHandler.handleCommand(event);
+		}
 	}
 }

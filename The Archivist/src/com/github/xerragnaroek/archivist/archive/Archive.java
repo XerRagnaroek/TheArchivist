@@ -42,13 +42,13 @@ import net.dv8tion.jda.api.managers.AudioManager;
 public class Archive {
 	// for possible multi guild operation
 	private static HashMap<Long, Archive> archives = new HashMap<>();
-	private static DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd-MM-yy HH:mm:ss.SSS");
+	public static final DateTimeFormatter LOG_FORMATTER = DateTimeFormatter.ofPattern("dd-MM-yy HH:mm:ss.SSS");
 
 	// fields are package visible to be accessible to Recorders
 	Path baseLoc;
 	HashMap<Long, Path> textChannelPath = new HashMap<>();
 	HashMap<Long, Path> voiceChannelPath = new HashMap<>();
-	private long gId;
+	long gId;
 	private final Logger log;
 	private Map<Long, Recorder> recorder = new ConcurrentHashMap<>();
 
@@ -92,6 +92,7 @@ public class Archive {
 				Files.createDirectory(att);
 			}
 			textChannelPath.put(tc.getIdLong(), p);
+			Files.writeString(p, "timestamp,messageId,user,content\n");
 		} catch (IOException e) {
 			log.error("", e);
 		}
@@ -167,7 +168,7 @@ public class Archive {
 	private void saveMessageDeletedImpl(GuildMessageDeleteEvent e) {
 		long start = System.currentTimeMillis();
 		Path p = textChannelPath.get(e.getChannel().getIdLong());
-		String str = String.format("[%s][%s]%s", formatter.format(ZonedDateTime.now(Core.GB)), e.getMessageId(), " message deleted") + "\n";
+		String str = String.format("%s,%s,,%s", LOG_FORMATTER.format(ZonedDateTime.now(Core.GB)), e.getMessageId(), " message deleted") + "\n";
 		try {
 			Files.writeString(p, str, StandardOpenOption.APPEND);
 		} catch (IOException ex) {
@@ -177,7 +178,7 @@ public class Archive {
 	}
 
 	private void appendToFile(Path p, Message m, Member u, String content) {
-		String str = String.format("[%s][%s]%s:%s", m.getTimeCreated().atZoneSameInstant(Core.GB).format(formatter), m.getId(), u.getEffectiveName(), content) + "\n";
+		String str = String.format("%s,%s,%s,%s", m.getTimeCreated().atZoneSameInstant(Core.GB).format(LOG_FORMATTER), m.getId(), u.getEffectiveName(), content) + "\n";
 		try {
 			Files.writeString(p, str, StandardOpenOption.APPEND);
 		} catch (IOException e) {
@@ -221,7 +222,7 @@ public class Archive {
 	private void textChannelDelImpl(TextChannel tc) {
 		Path tcP = textChannelPath.remove(tc.getIdLong());
 		try {
-			Files.writeString(tcP, String.format("[%s]DELETED", formatter.format(ZonedDateTime.now(Core.GB))), StandardOpenOption.APPEND);
+			Files.writeString(tcP, String.format("%s,,,CHANNEL DELETED", LOG_FORMATTER.format(ZonedDateTime.now(Core.GB))), StandardOpenOption.APPEND);
 		} catch (IOException e) {
 			log.error("", e);
 		}
@@ -238,6 +239,14 @@ public class Archive {
 		renameDeletedFolder(vcP);
 	}
 
+	private void userJoin(Member m, VoiceChannel vc) {
+		recorder.get(vc.getIdLong()).userJoinChannel(m);
+	}
+
+	private void userLeft(Member m, VoiceChannel vc) {
+		recorder.get(vc.getIdLong()).userLeftChannel(m);
+	}
+
 	public static void init() {
 		Core.JDA.getGuilds().forEach(g -> archives.put(g.getIdLong(), new Archive(g.getIdLong())));
 		startMidnightThread();
@@ -252,19 +261,19 @@ public class Archive {
 	}
 
 	public static void handleUserJoinedChannel(GuildVoiceJoinEvent event) {
-		userJoinImpl(event.getGuild(), event.getChannelJoined());
+		userJoinImpl(event.getGuild(), event.getChannelJoined(), event.getMember());
 	}
 
 	public static void handleUserLeftChannel(GuildVoiceLeaveEvent event) {
-		userLeftImpl(event.getChannelLeft());
+		userLeftImpl(event.getChannelLeft(), event.getMember());
 	}
 
 	public static void handleUserMovedChannel(GuildVoiceMoveEvent event) {
-		userLeftImpl(event.getChannelLeft());
+		userLeftImpl(event.getChannelLeft(), event.getMember());
 		try {
 			Thread.sleep(250);
 		} catch (InterruptedException e) {}
-		userJoinImpl(event.getGuild(), event.getChannelJoined());
+		userJoinImpl(event.getGuild(), event.getChannelJoined(), event.getMember());
 	}
 
 	public static void handleVoiceChannelCreated(VoiceChannelCreateEvent event) {
@@ -296,19 +305,28 @@ public class Archive {
 		Core.EXEC.scheduleAtFixedRate(() -> archives.values().forEach(Archive::initArchive), untilMidnight, TimeUnit.DAYS.toSeconds(1), TimeUnit.SECONDS);
 	}
 
-	private static void userJoinImpl(Guild g, VoiceChannel vc) {
+	private static void userJoinImpl(Guild g, VoiceChannel vc, Member m) {
 		Archive arch = archives.get(g.getIdLong());
-		if (!arch.isRecording(vc) && Scribes.hasScribeAvailable()) {
-			JDA scribe = Scribes.getScribe();
-			g = scribe.getGuildById(g.getId());
-			vc = g.getVoiceChannelById(vc.getId());
-			arch.startRecImpl(g.getAudioManager(), vc);
+		if (!arch.isRecording(vc)) {
+			if (Scribes.hasScribeAvailable()) {
+				JDA scribe = Scribes.getScribe();
+				g = scribe.getGuildById(g.getId());
+				vc = g.getVoiceChannelById(vc.getId());
+				arch.startRecImpl(g.getAudioManager(), vc);
+				arch.userJoin(m, vc);
+			}
+		} else {
+			arch.userJoin(m, vc);
 		}
 	}
 
-	private static void userLeftImpl(VoiceChannel vc) {
+	private static void userLeftImpl(VoiceChannel vc, Member m) {
+		Archive arch = archives.get(vc.getGuild().getIdLong());
 		if (vc.getMembers().size() == 1) {
-			archives.get(vc.getGuild().getIdLong()).stopRecImpl(vc);
+			arch.userLeft(m, vc);
+			arch.stopRecImpl(vc);
+		} else {
+			arch.userLeft(m, vc);
 		}
 	}
 

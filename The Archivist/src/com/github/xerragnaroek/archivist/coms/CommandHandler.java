@@ -2,9 +2,12 @@ package com.github.xerragnaroek.archivist.coms;
 
 import java.util.HashMap;
 
+import com.github.xerragnaroek.archivist.Core;
+
 import net.dv8tion.jda.api.events.interaction.SlashCommandEvent;
 import net.dv8tion.jda.api.events.message.guild.GuildMessageReceivedEvent;
 import net.dv8tion.jda.api.events.message.priv.PrivateMessageReceivedEvent;
+import net.dv8tion.jda.api.requests.restaction.CommandListUpdateAction;
 
 /**
  * 
@@ -12,7 +15,7 @@ import net.dv8tion.jda.api.events.message.priv.PrivateMessageReceivedEvent;
 public class CommandHandler {
 
 	private static HashMap<String, Command> coms = new HashMap<>();
-	private static Command[] tmp = new Command[] { new StopCommand() };
+	private static Command[] tmp = new Command[] { new ReadOnlyCommand(), new StopCommand() };
 	static {
 		for (Command com : tmp) {
 			coms.put(com.getName(), com);
@@ -34,7 +37,7 @@ public class CommandHandler {
 	}
 
 	public static void handleCommand(SlashCommandEvent e) {
-		Command com = coms.get(e.getCommandId());
+		Command com = coms.get(e.getName());
 		com.slashExec(e);
 	}
 
@@ -44,6 +47,12 @@ public class CommandHandler {
 			return coms.get(com);
 		}
 		return null;
+	}
+
+	public static void updateCommands() {
+		CommandListUpdateAction commands = Core.JDA.updateCommands();
+		commands.addCommands(coms.get("read_only").getCommandData());
+		commands.queue(v -> System.out.println("Commands pushed to api!"));
 	}
 
 }
