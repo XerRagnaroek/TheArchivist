@@ -58,22 +58,23 @@ public class Recorder implements AudioReceiveHandler {
 	private void init() {
 		start = ZonedDateTime.now(Core.GB);
 		file = Path.of(archive.voiceChannelPath.get(vc.getIdLong()).toString(), "/" + DateTimeFormatter.ofPattern("HH-mm-ss").format(start) + "/");
-		speakLog = Path.of(file.toString(), "log.log");
+		speakLog = Path.of(file.toString(), "log.csv");
 	}
 
 	public void startRecording() {
 		log.debug("Starting recording");
 		try {
+			Files.writeString(speakLog, "timestamp,id,event", StandardOpenOption.CREATE, StandardOpenOption.APPEND);
 			if (!Files.exists(file)) {
 				Files.createDirectory(file);
 			}
 			saver = new Saver(file);
+			am.setReceivingHandler(this);
+			am.openAudioConnection(vc);
+			saver.start();
 		} catch (IOException e) {
 			log.error("", e);
 		}
-		am.setReceivingHandler(this);
-		am.openAudioConnection(vc);
-		saver.start();
 	}
 
 	public void stopRecording() {
@@ -119,25 +120,27 @@ public class Recorder implements AudioReceiveHandler {
 				if (m == null) {
 					m = Core.JDA.getGuildById(g.getId()).getMember(u);
 				}
-				String str = String.format("[%s]%s stopped speaking", u.getId(), m.getEffectiveName()) + "\n";
-				log(str);
+				if (m != null) {
+					String str = String.format("%s,%s stopped speaking", u.getId(), m.getEffectiveName()) + "\n";
+					log(str);
+				}
 			}
 		});
 		speakers.retainAll(users);
 	}
 
 	void userJoinChannel(Member m) {
-		String str = String.format("[%s]%s joined the channel", m.getId(), m.getEffectiveName()) + "\n";
+		String str = String.format("%s,%s joined the channel", m.getId(), m.getEffectiveName()) + "\n";
 		log(str);
 	}
 
 	void userLeftChannel(Member m) {
-		String str = String.format("[%s]%s left the channel", m.getId(), m.getEffectiveName()) + "\n";
+		String str = String.format("%s,%s left the channel", m.getId(), m.getEffectiveName()) + "\n";
 		log(str);
 	}
 
 	private void log(String str) {
-		str = String.format("[%s]%s", ZonedDateTime.now(Core.GB).format(Archive.LOG_FORMATTER), str);
+		str = String.format("%s,%s", ZonedDateTime.now(Core.GB).format(Archive.LOG_FORMATTER), str);
 		try {
 			Files.writeString(speakLog, str, StandardOpenOption.CREATE, StandardOpenOption.APPEND);
 		} catch (IOException e) {

@@ -81,7 +81,7 @@ public class Archive {
 	}
 
 	private void initTextChannelImpl(TextChannel tc) {
-		Path p = Path.of(baseLoc.toString(), "/text/" + tc.getName() + "[" + tc.getId() + "]" + "/log.log");
+		Path p = Path.of(baseLoc.toString(), "/text/" + tc.getName() + "[" + tc.getId() + "]" + "/log.csv");
 		try {
 			if (Files.notExists(p)) {
 				Files.createDirectories(p.getParent());
@@ -150,7 +150,7 @@ public class Archive {
 						log.error("", t);
 					}
 				});
-				appendToFile(p, m, event.getMember(), String.format("attached file \"%s\"", a.getFileName()));
+				appendToFile(p, m, event.getMember(), String.format("attached file \"%s\"", tmp.getFileName()));
 			} catch (IOException e) {
 				log.error("", e);
 			}
