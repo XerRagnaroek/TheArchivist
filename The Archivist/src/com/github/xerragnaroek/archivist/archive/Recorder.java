@@ -64,10 +64,10 @@ public class Recorder implements AudioReceiveHandler {
 	public void startRecording() {
 		log.debug("Starting recording");
 		try {
-			Files.writeString(speakLog, "timestamp,id,event", StandardOpenOption.CREATE, StandardOpenOption.APPEND);
 			if (!Files.exists(file)) {
 				Files.createDirectory(file);
 			}
+			Files.writeString(speakLog, "timestamp,id,event", StandardOpenOption.CREATE, StandardOpenOption.APPEND);
 			saver = new Saver(file);
 			am.setReceivingHandler(this);
 			am.openAudioConnection(vc);

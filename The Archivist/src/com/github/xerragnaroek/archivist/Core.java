@@ -1,9 +1,12 @@
 package com.github.xerragnaroek.archivist;
 
+import java.io.PrintStream;
+import java.nio.charset.Charset;
 import java.time.ZoneId;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Scanner;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.stream.Stream;
@@ -11,6 +14,7 @@ import java.util.stream.Stream;
 import javax.security.auth.login.LoginException;
 
 import org.apache.commons.collections4.IteratorUtils;
+import org.apache.commons.io.output.WriterOutputStream;
 
 import com.github.xerragnaroek.archivist.archive.Archive;
 import com.github.xerragnaroek.archivist.archive.Scribes;
@@ -44,8 +48,22 @@ public class Core {
 		bob.enableCache(CacheFlag.VOICE_STATE);
 		JDA = bob.build();
 		JDA.awaitReady();
+		JDA.setEventManager(new InterfacedEvendManager());
 		JDA.addEventListener(new EventListener());
+		System.setErr(new PrintStream(new WriterOutputStream(new ChannelWriter(JDA.getGuildById("864067881746956298").getTextChannelById("870748668955877456")), Charset.defaultCharset(), 1024, true)));
 		// CommandHandler.updateCommands();
+		EXEC.execute(() -> {
+			Scanner scan = new Scanner(System.in);
+			String in;
+			while (!(in = scan.next()).equalsIgnoreCase("stop") && !in.equalsIgnoreCase("q")) {
+				System.out.println("stop or q to exit!");
+			}
+			System.out.println("Shutting down the Archivist and his scribes.");
+			Core.JDA.shutdown();
+			Scribes.shutdownScribes();
+			System.exit(0);
+		});
+
 	}
 
 	private static void handleArgs(String args[]) {
